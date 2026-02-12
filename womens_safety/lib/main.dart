@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:android_intent_plus/android_intent.dart';
+
 
 void main() {
   runApp(const MyApp());
@@ -260,22 +262,49 @@ class _BLEPageState extends State<BLEPage> with WidgetsBindingObserver {
   // -------------------------------------------------------------------------
   // Google Maps Launcher
   // -------------------------------------------------------------------------
-  Future<void> _openMaps() async {
-    if (currentLatitude == null || currentLongitude == null) {
-      _showSnackBar('Location not available');
-      return;
-    }
 
-    final Uri googleMapsUri = Uri.parse(
-      'https://www.google.com/maps/search/?api=1&query=$currentLatitude,$currentLongitude',
-    );
+Future<void> _openMaps() async {
+  if (currentLatitude == null || currentLongitude == null) {
+    _showSnackBar('Location not available');
+    return;
+  }
 
-    if (await canLaunchUrl(googleMapsUri)) {
-      await launchUrl(googleMapsUri);
-    } else {
-      _showSnackBar('Could not open Google Maps');
+  final lat = currentLatitude!;
+  final lng = currentLongitude!;
+
+  // ----- ANDROID: explicit Google Maps Intent -----
+  if (Theme.of(context).platform == TargetPlatform.android) {
+    try {
+      const package = 'com.google.android.apps.maps';
+      final intent = AndroidIntent(
+        action: 'android.intent.action.VIEW',
+        data: 'geo:0,0?q=$lat,$lng(Your+Location)',
+        package: package,
+      );
+      await intent.launch();
+      return; // success
+    } catch (e) {
+      debugPrint('Android Intent failed: $e');
+      // fallback to browser
     }
   }
+
+  // ----- iOS / Fallback: use url_launcher -----
+  final Uri appleMapsUri = Uri.parse(
+    'https://maps.apple.com/?ll=$lat,$lng&q=Your+Location',
+  );
+  final Uri webUri = Uri.parse(
+    'https://www.google.com/maps/search/?api=1&query=$lat,$lng',
+  );
+
+  if (await canLaunchUrl(appleMapsUri)) {
+    await launchUrl(appleMapsUri);
+  } else if (await canLaunchUrl(webUri)) {
+    await launchUrl(webUri);
+  } else {
+    _showSnackBar('Could not open maps');
+  }
+}
 
   void _showSnackBar(String message) {
     if (!mounted) return;

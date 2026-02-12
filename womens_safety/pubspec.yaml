@@ -37,6 +37,7 @@ dependencies:
   flutter_blue_plus: ^1.36.6
   url_launcher: ^6.3.2
   geolocator: ^14.0.2
+  android_intent_plus: ^6.0.0
 
 dev_dependencies:
   flutter_test:
